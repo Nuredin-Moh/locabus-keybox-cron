@@ -1,0 +1,29 @@
+name: Locabus Keybox Refresh
+
+# Regenere le code keybox HOURLY peu avant l'heure de prise de chaque reservation,
+# pour qu'il soit toujours dans sa fenetre d'activation de 24h (igloohome).
+# Le serveur fait tout le tri ; ce workflow ne fait qu'appeler l'endpoint avec le secret.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # toutes les 15 min (GitHub peut retarder ; la fenetre serveur est large)
+  workflow_dispatch:          # permet un declenchement manuel
+
+concurrency:
+  group: keybox-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Appeler l'endpoint de regeneration
+        run: |
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" --max-time 90 -X POST \
+            "https://locabus.ch/wp-json/locabus/v1/keybox/refresh-imminent" \
+            -H "X-Locabus-Token: ${{ secrets.LOCABUS_KEYBOX_TOKEN }}")
+          echo "HTTP $code"
+          cat /tmp/resp.json || true
+          echo ""
+          if [ "$code" != "200" ]; then echo "::error::Keybox refresh a echoue (HTTP $code)"; exit 1; fi

@@ -1,0 +1,21 @@
+name: Locabus - alerte batterie keybox
+
+on:
+  schedule:
+    - cron: '30 6 * * *'   # tous les jours ~08h30 suisse
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verifier la batterie et alerter si faible
+        env:
+          IGLOO_CID: ${{ secrets.IGLOO_CID }}
+          IGLOO_SECRET: ${{ secrets.IGLOO_SECRET }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: python battery_check.py

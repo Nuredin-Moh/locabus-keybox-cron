@@ -1,0 +1,25 @@
+name: Locabus - keepalive des taches planifiees
+
+# GitHub desactive les taches planifiees d'un depot public apres 60 jours sans activite
+# (c'est arrive le 19.09.2026 : plus aucun code keybox regenere avant les prises).
+# Chaque semaine, on re-active les trois taches via l'API, ce qui remet le compteur a zero.
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'   # chaque lundi ~07h17 suisse
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-activer les taches planifiees
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in keybox-refresh.yml battery-check.yml keepalive.yml; do
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$wf/enable" && echo "$wf : actif"
+          done

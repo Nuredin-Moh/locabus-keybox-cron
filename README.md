@@ -4,3 +4,4 @@ Cron GitHub Actions qui régénère le code keybox (algoPIN hourly igloohome) **
 
 - Toutes les ~15 min, appelle `POST https://locabus.ch/wp-json/locabus/v1/keybox/refresh-imminent` avec un secret (`X-Locabus-Token`, stocké en GitHub Secret `LOCABUS_KEYBOX_TOKEN`).
 - Le serveur (mu-plugin `locabus-keybox-refresh.php`) balaie les réservations dont la prise est imminente (−30 min … +3 h, Europe/Zurich), régénère le code et le renvoie au client. Idempotent.
+- Dépôt **public** : la réponse du serveur ne contient aucun code keybox ni donnée client (numéros de commande et compteurs seulement), et le workflow n'affiche que le nombre de commandes traitées.

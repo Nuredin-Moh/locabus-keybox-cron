@@ -37,8 +37,8 @@ def send_mail(subject, html):
 tok = igloo_token()
 devs = get_devices(tok)
 low = [d for d in devs if isinstance(d.get("batteryLevel"), int) and d["batteryLevel"] <= THRESHOLD]
-for d in devs:
-    print(f"{d.get('deviceName')} ({d.get('deviceId')}) : batterie {d.get('batteryLevel')}%")
+# Depot PUBLIC : pas d'identifiant d'appareil ni de detail dans le log, seulement un resume.
+print(f"{len(devs)} keybox verifiee(s), {len(low)} sous le seuil de {THRESHOLD}%")
 
 if low:
     lignes = "".join(

@@ -29,21 +29,26 @@ jobs:
     steps:
       - name: Appeler l'endpoint de regeneration (4 tentatives)
         id: call
+        env:
+          LOCABUS_TOKEN: ${{ secrets.LOCABUS_KEYBOX_TOKEN }}
+        # Depot PUBLIC : ce log est lisible par tous. On n'y affiche JAMAIS la reponse du serveur
+        # (ni code keybox, ni donnee client), seulement le code HTTP et des compteurs.
         run: |
           ok=0
           for i in 1 2 3 4; do
             code=$(curl -s -o /tmp/resp.json -w "%{http_code}" --max-time 90 -X POST \
               "https://locabus.ch/wp-json/locabus/v1/keybox/refresh-imminent" \
-              -H "X-Locabus-Token: ${{ secrets.LOCABUS_KEYBOX_TOKEN }}")
+              -H "X-Locabus-Token: $LOCABUS_TOKEN")
             echo "tentative $i : HTTP $code"
             if [ "$code" = "200" ]; then
               ok=1
-              cat /tmp/resp.json || true
-              echo ""
+              jq -r '"commandes traitees : \(.processed | length) (regenerees : \([.processed[] | select(.result == "regenere")] | length))"' \
+                /tmp/resp.json 2>/dev/null || echo "commandes traitees : reponse illisible"
               break
             fi
             sleep 45
           done
+          rm -f /tmp/resp.json
           if [ "$ok" != "1" ]; then
             echo "::warning::Echec apres 4 tentatives (HTTP $code) - probablement challenge anti-bot Hostinger"
             echo "failed=1" >> "$GITHUB_OUTPUT"

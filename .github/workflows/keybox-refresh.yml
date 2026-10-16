@@ -36,9 +36,11 @@ jobs:
         run: |
           ok=0
           for i in 1 2 3 4; do
-            code=$(curl -s -o /tmp/resp.json -w "%{http_code}" --max-time 90 -X POST \
+            # "|| true" : un delai depasse (curl exit 28) ne doit pas tuer l'etape (bash -e),
+            # sinon les 3 autres tentatives ne partent jamais et GitHub envoie un mail "Run failed".
+            code=$(curl -s -o /tmp/resp.json -w "%{http_code}" --max-time 60 -X POST \
               "https://locabus.ch/wp-json/locabus/v1/keybox/refresh-imminent" \
-              -H "X-Locabus-Token: $LOCABUS_TOKEN")
+              -H "X-Locabus-Token: $LOCABUS_TOKEN") || true
             echo "tentative $i : HTTP $code"
             if [ "$code" = "200" ]; then
               ok=1
@@ -59,10 +61,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          prev=$(gh run list --repo "${{ github.repository }}" --workflow "Locabus Keybox Refresh" \
-                 --limit 2 --json conclusion --jq '.[1].conclusion' 2>/dev/null || echo "unknown")
-          echo "Conclusion du run precedent : $prev"
-          if [ "$prev" = "failure" ]; then
+          # Le run precedent a-t-il AUSSI echoue ses 4 tentatives ? Un echec isole ne fait plus
+          # echouer le job : on regarde donc si l'etape d'alerte a tourne lors du run precedent.
+          prev_id=$(gh run list --repo "${{ github.repository }}" --workflow "Locabus Keybox Refresh" \
+                 --limit 2 --json databaseId --jq '.[1].databaseId' 2>/dev/null || echo "")
+          prev="unknown"
+          if [ -n "$prev_id" ]; then
+            prev=$(gh run view "$prev_id" --repo "${{ github.repository }}" --json jobs \
+                   --jq '[.jobs[].steps[] | select(.name | startswith("N'"'"'alerter")) | .conclusion][0]' 2>/dev/null || echo "unknown")
+          fi
+          echo "Etape d'alerte du run precedent : $prev"
+          if [ "$prev" = "success" ] || [ "$prev" = "failure" ]; then
             echo "::error::2 echecs consecutifs du refresh keybox - verifier locabus.ch (anti-bot / endpoint)"
             exit 1
           fi
